@@ -1,0 +1,23 @@
+# Ne pas publier le CSV source (seul data.js est necessaire)
+Events.csv
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+nul
+
+# Archive zip de deploy
+deploy-netlify.zip
+
+# Fichiers de config locale Claude
+.claude/
+
+# Editeurs
+*.swp
+*.swo
+*~
