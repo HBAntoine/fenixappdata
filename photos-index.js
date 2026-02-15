@@ -1,4 +1,4 @@
-// Auto-genere par generer-index.py - ne pas modifier
+// Auto-genere par Netlify Function - ne pas modifier
 var PHOTOS_INDEX = {
   "Cesson": [
     "baradat-alexandre__picture__2025-2026-8770-15644.png",
@@ -99,6 +99,11 @@ var PHOTOS_INDEX = {
     "7 Mansson.png",
     "9 Hallback.png",
     "97 Al-Khafadji.png"
+  ],
+  "Limoges": [
+    "aman-valentin__picture__2025-2026-632-16208.png",
+    "azkue-jon__picture__2025-2026-7705-15827.png",
+    "clarac-theo__picture__2025-2026-4333-16308.png"
   ],
   "Montpellier": [
     "balaguer-david__picture__2025-2026-2535-15880.png",
