@@ -17,6 +17,9 @@ deploy-netlify.zip
 # Fichiers de config locale Claude
 .claude/
 
+# Timestamp de derniere publication (local uniquement)
+.last-publish
+
 # Editeurs
 *.swp
 *.swo

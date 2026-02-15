@@ -13,6 +13,7 @@ UTILISATION :
 """
 
 import os
+import sys
 import json
 from pathlib import Path
 
@@ -53,7 +54,7 @@ def main():
         print("ERREUR : Le dossier 'Effectifs' n'existe pas !")
         print(f"   Creez le dossier : {effectifs_dir}")
         print()
-        input("Appuyez sur Entree pour quitter...")
+        sys.exit(1)
         return
 
     equipes_trouvees = 0
@@ -103,7 +104,6 @@ def main():
         print(f"TERMINE : {equipes_trouvees} equipe(s), {total_photos} photo(s) indexee(s)")
     print("=" * 70)
     print()
-    input("Appuyez sur Entree pour quitter...")
 
 
 if __name__ == "__main__":

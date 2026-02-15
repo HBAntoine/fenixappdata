@@ -22,8 +22,7 @@
     <!-- Index des photos (genere par generer-index.py, fonctionne en file://) -->
     <script src="photos-index.js"></script>
 
-    <!-- Donnees CSV pre-converties (genere par generer-data-js.py) -->
-    <script src="data.js"></script>
+    <!-- data.js est charge dynamiquement par autoLoadCSV() pour garantir la fraicheur -->
     
     <style>
         @font-face {
@@ -2501,43 +2500,74 @@
             console.log('━━━ autoLoadCSV ━━━');
 
             // =====================================================
-            // PRIORITE 1 : Charger depuis data.js (HANDBALL_DATA)
-            // Genere par generer-data-js.py, deja en JSON
+            // ETAPE 1 : TOUJOURS tenter de charger data.js FRAIS
+            //           depuis le serveur (bypass cache navigateur)
             // =====================================================
-            if (typeof HANDBALL_DATA !== 'undefined' && Array.isArray(HANDBALL_DATA) && HANDBALL_DATA.length > 0) {
-                console.log('📦 HANDBALL_DATA detecte :', HANDBALL_DATA.length, 'lignes');
+            let freshData = null;
+            let fetchOK = false;
 
-                // Hash du nombre de lignes + premiere/derniere ligne pour detecter changement
-                const dataHash = CryptoJS.MD5(JSON.stringify(HANDBALL_DATA.length) + JSON.stringify(HANDBALL_DATA[0]) + JSON.stringify(HANDBALL_DATA[HANDBALL_DATA.length - 1])).toString();
+            try {
+                showLoading('Chargement des données...');
+                // cache-busting : ajoute un timestamp pour forcer le serveur
+                const resp = await fetch('data.js?_t=' + Date.now(), { cache: 'no-cache' });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const jsText = await resp.text();
+
+                // Extraire le JSON depuis "var HANDBALL_DATA = [...];"
+                const match = jsText.match(/var\s+HANDBALL_DATA\s*=\s*(\[[\s\S]*\])\s*;/);
+                if (match && match[1]) {
+                    freshData = JSON.parse(match[1]);
+                    fetchOK = true;
+                    console.log('🌐 data.js chargé depuis serveur :', freshData.length, 'lignes');
+                } else {
+                    throw new Error('Format data.js invalide');
+                }
+            } catch (err) {
+                console.warn('⚠️ Fetch data.js échoué :', err.message);
+                fetchOK = false;
+            }
+
+            // =====================================================
+            // ETAPE 2 : Si fetch OK → importer dans IndexedDB
+            // =====================================================
+            if (fetchOK && freshData && freshData.length > 0) {
+                // Calculer un hash pour detecter si les donnees ont change
+                const dataHash = CryptoJS.MD5(
+                    String(freshData.length) + '|' +
+                    JSON.stringify(freshData[0]) + '|' +
+                    JSON.stringify(freshData[freshData.length - 1])
+                ).toString();
+
                 const storedHash = localStorage.getItem('csv_hash');
                 const dbCount = await countRawData();
 
-                console.log('🔑 Hash data.js :', dataHash);
-                console.log('🔑 Hash stocké  :', storedHash || '(aucun)');
+                console.log('🔑 Hash serveur :', dataHash);
+                console.log('🔑 Hash local   :', storedHash || '(aucun)');
                 console.log('💾 DB lignes    :', dbCount);
 
-                // Identique et DB remplie → skip
+                // Donnees identiques ET IndexedDB remplie → skip l'import
                 if (dataHash === storedHash && dbCount > 0) {
                     const dateStr = localStorage.getItem('csv_date') || '';
-                    console.log('✅ SKIP — data.js identique');
+                    console.log('✅ Données identiques — skip import');
+                    hideLoading();
                     updateDataStatus('📊 Données à jour (' + dbCount + ' lignes) — MAJ ' + dateStr);
                     return true;
                 }
 
-                // Sinon importer
+                // Donnees differentes OU DB vide → importer
                 const reason = !storedHash ? 'premier chargement'
-                             : dataHash !== storedHash ? 'data.js modifié'
-                             : 'cache DB vide';
-                console.log('🔄 IMPORT data.js — raison :', reason);
+                             : dataHash !== storedHash ? 'nouvelles données détectées'
+                             : 'cache local vide';
+                console.log('🔄 IMPORT — raison :', reason);
+                updateLoading('Import de ' + freshData.length + ' lignes...');
 
-                showLoading('Chargement depuis data.js...');
-                updateLoading('Import de ' + HANDBALL_DATA.length + ' lignes...');
-
-                const result = await parseAndStore(HANDBALL_DATA);
+                const result = await parseAndStore(freshData);
                 hideLoading();
 
+                // Sauvegarder le hash
                 const now = new Date();
-                const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+                const dateStr = now.toLocaleDateString('fr-FR') + ' ' +
+                    now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
                 localStorage.setItem('csv_hash', dataHash);
                 localStorage.setItem('csv_date', dateStr);
 
@@ -2545,88 +2575,32 @@
                 console.log('✅ TERMINÉ —', result.added, 'nouvelles,', result.skipped, 'existantes, total DB :', totalInDB);
 
                 if (result.added > 0) {
-                    showAlert('success', '✅ ' + result.added + ' nouvelles lignes ajoutées (data.js)');
+                    showAlert('success', '✅ ' + result.added + ' nouvelles lignes ajoutées');
                 } else {
-                    showAlert('info', '✅ Données déjà à jour');
+                    showAlert('info', '✅ Données à jour');
                 }
                 updateDataStatus('📊 ' + totalInDB + ' lignes — MAJ ' + dateStr);
                 return true;
             }
 
-            console.log('⚠️ HANDBALL_DATA non disponible, fallback sur Events.csv...');
-
             // =====================================================
-            // FALLBACK : Charger depuis Events.csv (ancien mode)
+            // ETAPE 3 : HORS LIGNE — fallback sur IndexedDB
             // =====================================================
-            let csvText;
-            try {
-                const resp = await fetch('Events.csv');
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                csvText = await resp.text();
-            } catch (err) {
-                console.warn('⚠️ fetch Events.csv échoué :', err.message);
-                return false;
-            }
+            console.log('📴 Mode hors ligne — utilisation du cache IndexedDB');
+            hideLoading();
 
-            if (!csvText || csvText.trim().length === 0) {
-                console.warn('⚠️ Events.csv vide');
-                return false;
-            }
-
-            console.log('📄 Events.csv :', csvText.length, 'caractères');
-
-            const hash = csvHash(csvText);
-            const storedHash2 = localStorage.getItem('csv_hash');
-            const dbCount2 = await countRawData();
-
-            console.log('🔑 Hash fichier :', hash);
-            console.log('🔑 Hash stocké  :', storedHash2 || '(aucun)');
-            console.log('💾 DB lignes    :', dbCount2);
-
-            if (hash === storedHash2 && dbCount2 > 0) {
+            const dbCount = await countRawData();
+            if (dbCount > 0) {
                 const dateStr = localStorage.getItem('csv_date') || '';
-                console.log('✅ SKIP — fichier identique');
-                updateDataStatus('📊 Données à jour (' + dbCount2 + ' lignes) — MAJ ' + dateStr);
+                console.log('✅ Cache IndexedDB :', dbCount, 'lignes');
+                updateDataStatus('📴 Hors ligne — cache (' + dbCount + ' lignes) — MAJ ' + dateStr, true);
                 return true;
             }
 
-            const reason2 = !storedHash2 ? 'premier chargement'
-                         : hash !== storedHash2 ? 'fichier modifié'
-                         : 'cache DB vide';
-            console.log('🔄 IMPORT CSV — raison :', reason2);
-
-            showLoading('Chargement de Events.csv...');
-
-            const data = await new Promise((resolve, reject) => {
-                Papa.parse(csvText, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: (r) => resolve(r.data),
-                    error: (e) => reject(e)
-                });
-            });
-
-            console.log('📊 CSV parsé :', data.length, 'lignes');
-            updateLoading('Import de ' + data.length + ' lignes...');
-
-            const result = await parseAndStore(data);
-            hideLoading();
-
-            const now = new Date();
-            const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-            localStorage.setItem('csv_hash', hash);
-            localStorage.setItem('csv_date', dateStr);
-
-            const totalInDB = await countRawData();
-            console.log('✅ TERMINÉ —', result.added, 'nouvelles,', result.skipped, 'existantes, total DB :', totalInDB);
-
-            if (result.added > 0) {
-                showAlert('success', '✅ ' + result.added + ' nouvelles lignes ajoutées');
-            } else {
-                showAlert('info', '✅ Données déjà à jour');
-            }
-            updateDataStatus('📊 ' + totalInDB + ' lignes — MAJ ' + dateStr);
-            return true;
+            // Aucune donnee nulle part
+            console.warn('❌ Aucune donnée : pas de réseau et pas de cache');
+            updateDataStatus('❌ Aucune donnée — connectez-vous à Internet', true);
+            return false;
         }
 
         // INIT

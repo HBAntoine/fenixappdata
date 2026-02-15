@@ -19,7 +19,7 @@ if %ERRORLEVEL% NEQ 0 (
     echo ERREUR : La generation de data.js a echoue !
     echo Verifiez que Events.csv existe et que Python est installe.
     echo.
-    pause
+    if "%1"=="" pause
     exit /b 1
 )
 
@@ -35,7 +35,7 @@ if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ERREUR : La generation de photos-index.js a echoue !
     echo.
-    pause
+    if "%1"=="" pause
     exit /b 1
 )
 
@@ -54,7 +54,7 @@ if %ERRORLEVEL% NEQ 0 (
     echo ERREUR : Git n'est pas installe ou pas dans le PATH !
     echo Installez Git depuis https://git-scm.com
     echo.
-    pause
+    if "%1"=="" pause
     exit /b 1
 )
 
@@ -64,7 +64,7 @@ if %ERRORLEVEL% NEQ 0 (
     echo ERREUR : Ce dossier n'est pas un repo Git !
     echo Executez d'abord : git init ^&^& git remote add origin VOTRE_URL_GITHUB
     echo.
-    pause
+    if "%1"=="" pause
     exit /b 1
 )
 
@@ -77,7 +77,7 @@ if %ERRORLEVEL% EQU 0 (
     echo   Aucun changement detecte - rien a publier.
     echo   Les donnees sont deja a jour !
     echo.
-    pause
+    if "%1"=="" pause
     exit /b 0
 )
 
@@ -90,7 +90,7 @@ if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ERREUR : Le commit a echoue !
     echo.
-    pause
+    if "%1"=="" pause
     exit /b 1
 )
 
@@ -109,7 +109,7 @@ if %ERRORLEVEL% NEQ 0 (
     echo.
     echo Essayez manuellement : git push -u origin main
     echo.
-    pause
+    if "%1"=="" pause
     exit /b 1
 )
 
@@ -130,4 +130,4 @@ echo   URL : https://fenixappdata.netlify.app
 echo.
 echo ======================================================================
 echo.
-pause
+if "%1"=="" pause
