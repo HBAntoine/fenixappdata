@@ -101,7 +101,6 @@ var PHOTOS_INDEX = {
     "97 Al-Khafadji.png"
   ],
   "Limoges": [
-    "garcia-arnau__picture__2025-2026-2799-16084.png",
     "guillaume-andrea__picture__2025-2026-3124-15835.png",
     "hrstic-matej__picture__2025-2026-3979-15836.png"
   ],
