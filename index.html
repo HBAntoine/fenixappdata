@@ -1011,6 +1011,151 @@
             max-height: 2000px;
             padding: 1.5rem 2rem 2rem;
         }
+
+        /* ===== PHOTO MODAL ===== */
+        .photo-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .photo-modal-overlay.hidden { display: none; }
+        .photo-modal {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            color: #e2e8f0;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .photo-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .photo-modal-header h2 {
+            margin: 0;
+            font-size: 1.3rem;
+        }
+        .photo-modal-close {
+            background: none;
+            border: none;
+            color: #e2e8f0;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 4px 8px;
+            line-height: 1;
+        }
+        .photo-upload-zone {
+            border: 2px dashed #475569;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 16px;
+            transition: border-color 0.3s, background 0.3s;
+            cursor: pointer;
+        }
+        .photo-upload-zone.drag-over {
+            border-color: #EB275C;
+            background: rgba(235,39,92,0.1);
+        }
+        .photo-upload-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+        .photo-upload-zone p { margin: 4px 0; color: #94a3b8; }
+        .photo-upload-zone .subtitle { font-size: 0.8rem; color: #64748b; }
+        .btn-upload-photos {
+            background: #EB275C;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 0.9rem;
+        }
+        .photo-preview-grid, .current-photos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .photo-preview-item, .current-photo-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 1;
+            background: #0f172a;
+        }
+        .photo-preview-item img, .current-photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .photo-delete-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(239,68,68,0.9);
+            border: none;
+            color: white;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        .photo-name-label {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.75);
+            padding: 2px 4px;
+            font-size: 9px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #cbd5e1;
+        }
+        .btn-upload-confirm {
+            width: 100%;
+            padding: 12px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+        .btn-upload-confirm.hidden { display: none; }
+        .photo-upload-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: #0f172a;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            color: #94a3b8;
+        }
+        .photo-upload-status.hidden { display: none; }
+        .photo-section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 16px 0 8px;
+            color: #e2e8f0;
+        }
     </style>
 </head>
 <body>
@@ -1033,6 +1178,9 @@
                     📁
                 </label>
             </div>
+            <div class="bubble-item" id="bubblePhotos" title="Gérer les photos">
+                📸
+            </div>
             <div class="bubble-item" id="bubbleReset" title="Reset">
                 🗑️
             </div>
@@ -1042,6 +1190,39 @@
         </div>
     </div>
     <input type="file" id="fileInput" accept=".csv,.xlsx,.xlsm,.xls" style="display: none;">
+
+    <!-- PHOTO UPLOAD MODAL -->
+    <div class="photo-modal-overlay hidden" id="photoModalOverlay">
+        <div class="photo-modal">
+            <div class="photo-modal-header">
+                <h2>📸 Photos - <span id="photoModalTeam"></span></h2>
+                <button class="photo-modal-close" onclick="closePhotoModal()">&times;</button>
+            </div>
+
+            <div class="photo-upload-zone" id="photoDropZone">
+                <div class="icon">📷</div>
+                <p>Glissez des photos ici</p>
+                <p class="subtitle">.png, .jpg, .jpeg, .webp, .gif</p>
+                <label for="photoFileInput">
+                    <div class="btn-upload-photos">ou cliquez pour selectionner</div>
+                </label>
+                <input type="file" id="photoFileInput" accept=".png,.jpg,.jpeg,.webp,.gif" multiple style="display: none;">
+            </div>
+
+            <div id="photoUploadPreview" class="photo-preview-grid"></div>
+
+            <button class="btn-upload-confirm hidden" id="btnConfirmUpload" onclick="confirmPhotoUpload()">
+                ⬆️ Envoyer <span id="photoUploadCount">0</span> photo(s)
+            </button>
+
+            <div class="photo-upload-status hidden" id="photoUploadStatus">
+                <span id="photoUploadStatusText"></span>
+            </div>
+
+            <div class="photo-section-title">Photos actuelles</div>
+            <div id="currentPhotosGrid" class="current-photos-grid"></div>
+        </div>
+    </div>
     
     <!-- ALERTS -->
     <div id="alertContainer"></div>
@@ -2613,6 +2794,9 @@
                 // Charger automatiquement Events.csv
                 const loaded = await autoLoadCSV();
 
+                // Rafraichir l'index des photos depuis le serveur
+                await refreshPhotosIndex();
+
                 await loadTeamsFromDB();
                 const count = await countRawData();
 
@@ -2739,7 +2923,13 @@
                 };
             }
         });
-        
+
+        // --- BOUTON PHOTOS ---
+        document.getElementById('bubblePhotos').addEventListener('click', () => {
+            floatingBubbles.classList.remove('active');
+            openPhotoModal();
+        });
+
         function handleFileInput(e) {
             const file = e.target.files[0];
             if (file) {
@@ -2881,7 +3071,7 @@
         
         // PARSE AND STORE
         async function parseAndStore(data) {
-            const teams = detectTeams(data[0]);
+            const teams = detectTeams(data);
             updateLoading(`Équipes détectées : ${teams.join(', ')}`);
             
             for (const team of teams) {
@@ -2936,14 +3126,23 @@
             return { added, skipped, total: data.length };
         }
         
-        function detectTeams(sampleRow) {
+        function detectTeams(allRows) {
             const teams = new Set();
-            Object.keys(sampleRow).forEach(key => {
-                if (key.includes('#03 Phase ')) {
-                    const team = key.replace('#03 Phase ', '').trim();
-                    if (team) teams.add(team);
+            // Scanner TOUTES les lignes pour trouver toutes les colonnes #03 Phase XXX
+            for (let i = 0; i < allRows.length; i++) {
+                const keys = Object.keys(allRows[i]);
+                for (let k = 0; k < keys.length; k++) {
+                    if (keys[k].startsWith('#03 Phase ')) {
+                        const team = keys[k].substring(11).trim();
+                        if (team) teams.add(team);
+                    }
                 }
-            });
+                // Filet de securite : aussi via #01 Attaque / #02 Defence
+                const att = allRows[i]['#01 Attaque'];
+                const def = allRows[i]['#02 Défense'];
+                if (att && att.trim()) teams.add(att.trim());
+                if (def && def.trim()) teams.add(def.trim());
+            }
             return Array.from(teams);
         }
         
@@ -4174,6 +4373,284 @@ async function loadPhotoIndexForTeam(teamName) {
     }
 }
 
+// ============================================
+// GESTION DES PHOTOS (upload/suppression)
+// ============================================
+let pendingPhotos = []; // [{file, name, preview, base64}]
+let photoDropZoneSetup = false;
+
+function openPhotoModal() {
+    if (!currentTeam) {
+        showAlert('warning', 'Selectionnez une equipe d\'abord');
+        return;
+    }
+    document.getElementById('photoModalTeam').textContent = currentTeam;
+    document.getElementById('photoModalOverlay').classList.remove('hidden');
+    pendingPhotos = [];
+    renderPendingPhotos();
+    renderCurrentPhotos();
+    if (!photoDropZoneSetup) {
+        setupPhotoDragDrop();
+        photoDropZoneSetup = true;
+    }
+}
+
+function closePhotoModal() {
+    document.getElementById('photoModalOverlay').classList.add('hidden');
+    pendingPhotos = [];
+    renderPendingPhotos();
+}
+
+function setupPhotoDragDrop() {
+    const zone = document.getElementById('photoDropZone');
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => {
+        zone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+    });
+    zone.addEventListener('dragenter', () => zone.classList.add('drag-over'));
+    zone.addEventListener('dragover', () => zone.classList.add('drag-over'));
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', (e) => {
+        zone.classList.remove('drag-over');
+        handlePhotoFiles(e.dataTransfer.files);
+    });
+    document.getElementById('photoFileInput').addEventListener('change', (e) => {
+        handlePhotoFiles(e.target.files);
+        e.target.value = '';
+    });
+}
+
+function handlePhotoFiles(fileList) {
+    const VALID_EXTS = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+    for (const file of fileList) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!VALID_EXTS.includes(ext)) {
+            showAlert('warning', `${file.name} : format non supporte`);
+            continue;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            showAlert('warning', `${file.name} : trop lourd (max 5 Mo)`);
+            continue;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            pendingPhotos.push({
+                file: file,
+                name: file.name,
+                preview: e.target.result,
+                base64: e.target.result.split(',')[1]
+            });
+            renderPendingPhotos();
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function renderPendingPhotos() {
+    const container = document.getElementById('photoUploadPreview');
+    const btn = document.getElementById('btnConfirmUpload');
+    const countSpan = document.getElementById('photoUploadCount');
+
+    container.innerHTML = '';
+    if (pendingPhotos.length === 0) {
+        btn.classList.add('hidden');
+        return;
+    }
+
+    btn.classList.remove('hidden');
+    countSpan.textContent = pendingPhotos.length;
+
+    pendingPhotos.forEach((photo, idx) => {
+        const div = document.createElement('div');
+        div.className = 'photo-preview-item';
+
+        const img = document.createElement('img');
+        img.src = photo.preview;
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'photo-delete-btn';
+        delBtn.textContent = '\u00d7';
+        delBtn.onclick = () => {
+            pendingPhotos.splice(idx, 1);
+            renderPendingPhotos();
+        };
+
+        const nameLabel = document.createElement('div');
+        nameLabel.className = 'photo-name-label';
+        nameLabel.textContent = photo.name;
+
+        div.appendChild(img);
+        div.appendChild(delBtn);
+        div.appendChild(nameLabel);
+        container.appendChild(div);
+    });
+}
+
+async function renderCurrentPhotos() {
+    const container = document.getElementById('currentPhotosGrid');
+    container.innerHTML = '';
+
+    const photos = await loadPhotoIndexForTeam(currentTeam);
+    if (photos.length === 0) {
+        container.innerHTML = '<p style="color:#94a3b8; grid-column: 1/-1;">Aucune photo pour cette equipe</p>';
+        return;
+    }
+
+    photos.forEach(filename => {
+        const div = document.createElement('div');
+        div.className = 'current-photo-item';
+
+        const img = document.createElement('img');
+        img.src = `Effectifs/${currentTeam}/${filename}`;
+        img.onerror = function() {
+            this.style.display = 'none';
+        };
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'photo-delete-btn';
+        delBtn.textContent = '\u00d7';
+        delBtn.onclick = () => deleteExistingPhoto(filename);
+
+        const nameLabel = document.createElement('div');
+        nameLabel.className = 'photo-name-label';
+        nameLabel.textContent = filename;
+
+        div.appendChild(img);
+        div.appendChild(delBtn);
+        div.appendChild(nameLabel);
+        container.appendChild(div);
+    });
+}
+
+async function confirmPhotoUpload() {
+    if (pendingPhotos.length === 0) return;
+
+    const statusEl = document.getElementById('photoUploadStatus');
+    const statusText = document.getElementById('photoUploadStatusText');
+    const confirmBtn = document.getElementById('btnConfirmUpload');
+    statusEl.classList.remove('hidden');
+    confirmBtn.classList.add('hidden');
+
+    try {
+        const BATCH_SIZE = 3;
+        for (let i = 0; i < pendingPhotos.length; i += BATCH_SIZE) {
+            const batch = pendingPhotos.slice(i, i + BATCH_SIZE);
+            const batchEnd = Math.min(i + BATCH_SIZE, pendingPhotos.length);
+            statusText.textContent = `Envoi ${i + 1}-${batchEnd} / ${pendingPhotos.length}...`;
+
+            const resp = await fetch('/.netlify/functions/upload-photos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    teamName: currentTeam,
+                    photos: batch.map(p => ({
+                        filename: p.name,
+                        base64data: p.base64
+                    })),
+                    deletions: []
+                })
+            });
+
+            const result = await resp.json();
+            if (!resp.ok) throw new Error(result.error || 'Erreur serveur ' + resp.status);
+
+            // Mettre a jour le cache local immediatement
+            if (result.photosIndex) {
+                if (typeof PHOTOS_INDEX !== 'undefined') {
+                    for (const key of Object.keys(result.photosIndex)) {
+                        PHOTOS_INDEX[key] = result.photosIndex[key];
+                    }
+                } else {
+                    window.PHOTOS_INDEX = result.photosIndex;
+                }
+                delete photosCache[currentTeam];
+                if (result.photosIndex[currentTeam]) {
+                    photosCache[currentTeam] = result.photosIndex[currentTeam];
+                }
+            }
+        }
+
+        showAlert('success', `${pendingPhotos.length} photo(s) uploadee(s) pour ${currentTeam}. Netlify redeploit dans ~30s.`);
+        pendingPhotos = [];
+        renderPendingPhotos();
+        renderCurrentPhotos();
+
+    } catch (err) {
+        showAlert('error', `Upload echoue : ${err.message}`);
+    } finally {
+        statusEl.classList.add('hidden');
+    }
+}
+
+async function deleteExistingPhoto(filename) {
+    if (!confirm(`Supprimer ${filename} ?`)) return;
+
+    const statusEl = document.getElementById('photoUploadStatus');
+    const statusText = document.getElementById('photoUploadStatusText');
+    statusEl.classList.remove('hidden');
+    statusText.textContent = 'Suppression en cours...';
+
+    try {
+        const resp = await fetch('/.netlify/functions/upload-photos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                teamName: currentTeam,
+                photos: [],
+                deletions: [filename]
+            })
+        });
+
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.error || 'Erreur serveur');
+
+        if (result.photosIndex) {
+            if (typeof PHOTOS_INDEX !== 'undefined') {
+                for (const key of Object.keys(result.photosIndex)) {
+                    PHOTOS_INDEX[key] = result.photosIndex[key];
+                }
+            } else {
+                window.PHOTOS_INDEX = result.photosIndex;
+            }
+            delete photosCache[currentTeam];
+            if (result.photosIndex[currentTeam]) {
+                photosCache[currentTeam] = result.photosIndex[currentTeam];
+            }
+        }
+
+        showAlert('success', `Photo supprimee`);
+        renderCurrentPhotos();
+
+    } catch (err) {
+        showAlert('error', `Suppression echouee : ${err.message}`);
+    } finally {
+        statusEl.classList.add('hidden');
+    }
+}
+
+// Rafraichir photos-index.js depuis le serveur (cache-busting)
+async function refreshPhotosIndex() {
+    try {
+        const resp = await fetch('photos-index.js?_t=' + Date.now(), { cache: 'no-cache' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const jsText = await resp.text();
+
+        const match = jsText.match(/var\s+PHOTOS_INDEX\s*=\s*(\{[\s\S]*\})\s*;/);
+        if (match && match[1]) {
+            const freshIndex = JSON.parse(match[1]);
+            if (typeof PHOTOS_INDEX !== 'undefined') {
+                for (const key of Object.keys(freshIndex)) {
+                    PHOTOS_INDEX[key] = freshIndex[key];
+                }
+            } else {
+                window.PHOTOS_INDEX = freshIndex;
+            }
+            photosCache = {};
+            console.log('✅ photos-index.js rafraichi depuis le serveur (' + Object.keys(freshIndex).length + ' equipes)');
+        }
+    } catch (err) {
+        console.warn('⚠️ Refresh photos-index.js echoue:', err.message);
+    }
+}
 
 
 async function renderPlayerCards(data) {

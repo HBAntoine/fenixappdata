@@ -3,7 +3,7 @@
 // Strategie : Network First (en ligne d'abord, sinon cache)
 // ============================================================
 
-const CACHE_NAME = 'fenix-stats-v1';
+const CACHE_NAME = 'fenix-stats-v2';
 
 // Fichiers essentiels a cacher au premier chargement
 const ESSENTIAL_FILES = [
