@@ -2749,6 +2749,35 @@
             }
         }
         
+        // ==========================================================
+        // Publier les donnees vers GitHub via Netlify Function
+        // ==========================================================
+        async function publishToCloud(data) {
+            try {
+                updateLoading('Publication vers le cloud...');
+                console.log('☁️ Publication de', data.length, 'lignes vers GitHub...');
+
+                const resp = await fetch('/.netlify/functions/upload-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: data })
+                });
+
+                const result = await resp.json();
+
+                if (!resp.ok) {
+                    throw new Error(result.error || 'Erreur serveur ' + resp.status);
+                }
+
+                console.log('✅ Publication réussie :', result.message);
+                return result;
+
+            } catch (err) {
+                console.error('❌ Publication échouée :', err.message);
+                throw err;
+            }
+        }
+
         async function handleFile(file) {
             showLoading('Lecture du fichier...');
 
@@ -2761,22 +2790,34 @@
                 } else {
                     data = await parseExcel(file);
                 }
-                
+
                 updateLoading(`Analyse de ${data.length} lignes...`);
-                
+
+                // 1) Stocker localement dans IndexedDB
                 const result = await parseAndStore(data);
-                
-                hideLoading();
-                
+
                 if (result.added === 0 && result.skipped > 0) {
+                    hideLoading();
                     showAlert('info', `ℹ️ Aucune nouvelle donnée : ${result.skipped} doublons déjà présents`);
                 } else {
-                    showAlert('success', `✅ Import réussi : ${result.added} nouvelles lignes, ${result.skipped} doublons ignorés`);
+                    // 2) Publier vers GitHub (Netlify Function)
+                    try {
+                        const cloudResult = await publishToCloud(data);
+                        hideLoading();
+                        showAlert('success',
+                            `✅ Import + Publication réussis ! ${cloudResult.newCount} nouvelles lignes → total ${cloudResult.totalCount}. Netlify redéploie dans ~30s.`
+                        );
+                    } catch (cloudErr) {
+                        hideLoading();
+                        showAlert('success',
+                            `✅ Import local OK (${result.added} lignes). ⚠️ Publication cloud échouée : ${cloudErr.message}`
+                        );
+                    }
                 }
-                
+
                 await loadTeamsFromDB();
                 renderTeamsNav();
-                
+
                 // Reload current team if on team page
                 if (currentTeam) {
                     await loadTeamData();
@@ -2784,7 +2825,7 @@
                     document.getElementById('dropZone').classList.add('hidden');
                     document.getElementById('teamPage').classList.remove('hidden');
                 }
-                
+
             } catch (error) {
                 hideLoading();
                 showAlert('error', `❌ Erreur : ${error.message}`);
