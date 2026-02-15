@@ -5,6 +5,12 @@
 [functions]
   node_bundler = "esbuild"
 
+# Rediriger les appels API vers les functions (priorite haute)
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
