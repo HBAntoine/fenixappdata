@@ -1,5 +1,5 @@
 // ============================================================
-// NETLIFY FUNCTION : upload-data
+// NETLIFY FUNCTION : upload-data  (v3 - Git Blobs API)
 //
 // Recoit les donnees CSV parsees en JSON depuis le navigateur,
 // genere data.js et commit + push vers GitHub.
