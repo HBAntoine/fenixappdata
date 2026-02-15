@@ -3,8 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Handball Analytics - Multi-Équipes</title>
-    
+    <title>Fenix Handball Stats</title>
+
+    <!-- PWA -->
+    <meta name="theme-color" content="#EB275C">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Fenix Stats">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+
     <!-- Libraries -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
@@ -6456,6 +6465,31 @@ function renderTableNeutralise(filtered, matchCount) {
             setTimeout(() => {
                 alert.remove();
             }, 5000);
+        }
+    </script>
+
+    <!-- Service Worker PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => {
+                        console.log('✅ Service Worker enregistré, scope :', reg.scope);
+
+                        // Detecter une mise a jour du SW
+                        reg.addEventListener('updatefound', () => {
+                            const newSW = reg.installing;
+                            newSW.addEventListener('statechange', () => {
+                                if (newSW.state === 'activated') {
+                                    console.log('🔄 Nouveau Service Worker actif - rechargement...');
+                                    // Recharger pour prendre les nouveaux fichiers en cache
+                                    window.location.reload();
+                                }
+                            });
+                        });
+                    })
+                    .catch(err => console.warn('⚠️ Service Worker non enregistré :', err));
+            });
         }
     </script>
 </body>
