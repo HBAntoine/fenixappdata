@@ -29,8 +29,9 @@ var PHOTOS_INDEX = {
     "pettersen-simen-holand__picture__2025-2026-8812-15691.png",
     "peyronnet-emilien__picture__2025-2026-6925-15692.png",
     "pimenta-hugo__picture__2025-2026-4928-15693.png",
-    "sousa-andre__picture__2025-2026-8134-15698.png",
+    "soussa-andre__picture__2025-2026-8134-15698.png",
     "tomasek-adam__picture__2025-2026-8605-15699.png",
+    "toskas-achilleas__picture__2025-2026-9861-16877.png",
     "traore-queido__picture__2025-2026-1178-15700.png",
     "vanegue-lucas__picture__2025-2026-4977-15701.png",
     "vergely-adrien__picture__2025-2026-2231-15702.png",
@@ -113,6 +114,7 @@ var PHOTOS_INDEX = {
     "plantin-leo__picture__2025-2026-4913-15882.png",
     "porte-valentin__picture__2025-2026-41-15874.png",
     "prat-kylian__picture__2025-2026-5965-15875.png",
+    "simonet-diego__picture__2025-2026-1030-15876.png",
     "srna-zvonimir__picture__2025-2026-6400-15884.png",
     "villeminot-kyllian__picture__2025-2026-2503-15879.png"
   ],
