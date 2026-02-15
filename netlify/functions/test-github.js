@@ -1,4 +1,4 @@
-// Test simple : verifie que le token GitHub fonctionne
+// Test simple : verifie que le token GitHub fonctionne (v2 - force redeploy)
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
