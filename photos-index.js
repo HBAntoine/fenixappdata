@@ -24,6 +24,7 @@ var PHOTOS_INDEX = {
     "frattaruolo-sasha__picture__2025-2026-7086-15681.png",
     "goni-iosu__picture__2025-2026-1262-15684.png",
     "groselj-matic__picture__2025-2026-5679-15689.png",
+    "johannsson-sveinn__picture__2025-2026-8867-16372.png",
     "kieffer-valentin__picture__2025-2026-3090-15687.png",
     "paturel-pierre__picture__2025-2026-600-15690.png",
     "pettersen-simen-holand__picture__2025-2026-8812-15691.png",
