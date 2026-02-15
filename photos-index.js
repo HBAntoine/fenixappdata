@@ -100,6 +100,9 @@ var PHOTOS_INDEX = {
     "9 Hallback.png",
     "97 Al-Khafadji.png"
   ],
+  "Limoges": [
+    "ogando-maxime__picture__2025-2026-3036-15842.png"
+  ],
   "Montpellier": [
     "balaguer-david__picture__2025-2026-2535-15880.png",
     "becker-fisher-mathis__picture__2025-2026-5982-15852.png",
