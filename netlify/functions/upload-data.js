@@ -1,33 +1,29 @@
 // ============================================================
-// NETLIFY FUNCTION : upload-data  (v3 - Git Blobs API)
-//
-// Recoit les donnees CSV parsees en JSON depuis le navigateur,
-// genere data.js et commit + push vers GitHub.
-//
-// Utilise l'API Git de bas niveau (Blobs/Trees/Commits)
-// pour supporter les fichiers > 1 Mo (pas de limite).
-//
-// Variables d'environnement requises :
-//   GITHUB_TOKEN  - Personal Access Token GitHub (scope: repo)
-//   GITHUB_REPO   - "HBAntoine/fenixappdata"
+// NETLIFY FUNCTION : upload-data  (v4 - debug + Git Blobs API)
 // ============================================================
 
 const GITHUB_API = 'https://api.github.com';
 
 async function githubFetch(endpoint, token, options = {}) {
   const url = endpoint.startsWith('http') ? endpoint : `${GITHUB_API}${endpoint}`;
+
+  console.log(`[github] ${options.method || 'GET'} ${url}`);
+
   const resp = await fetch(url, {
     ...options,
     headers: {
-      'Authorization': `token ${token}`,
-      'Accept': 'application/vnd.github.v3+json',
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
       'User-Agent': 'FenixStats-Netlify-Function',
+      'X-GitHub-Api-Version': '2022-11-28',
       'Content-Type': 'application/json',
       ...(options.headers || {})
     }
   });
 
   const text = await resp.text();
+  console.log(`[github] -> ${resp.status} (${text.length} chars)`);
+
   let json;
   try { json = JSON.parse(text); } catch (e) { json = null; }
 
@@ -39,7 +35,6 @@ async function githubFetch(endpoint, token, options = {}) {
   return json;
 }
 
-// Hash simple pour deduplication (identique cote serveur)
 function rowHash(row) {
   const components = [
     row['Position'] || '',
@@ -87,33 +82,51 @@ exports.handler = async (event) => {
       return { statusCode: 500, headers, body: JSON.stringify({ error: 'GITHUB_TOKEN non configure' }) };
     }
 
-    console.log(`[upload-data] Debut - ${data.length} lignes recues, repo: ${repo}`);
+    console.log(`[upload-data] Debut - ${data.length} lignes, repo: ${repo}`);
+    console.log(`[upload-data] Token commence par: ${token.substring(0, 8)}...`);
 
     // ---------------------------------------------------------
-    // ETAPE 1 : Recuperer le data.js existant via download_url
-    //           (contourne la limite 1 Mo de l'API Contents)
+    // TEST : Verifier que le token fonctionne
+    // ---------------------------------------------------------
+    try {
+      const user = await githubFetch('/user', token);
+      console.log(`[upload-data] Token OK - utilisateur: ${user.login}`);
+    } catch (e) {
+      console.error(`[upload-data] Token INVALIDE: ${e.message}`);
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({
+          error: `Token GitHub invalide ou sans permissions. ${e.message}`,
+          hint: 'Verifiez que le token est un "Classic token" avec le scope "repo"'
+        })
+      };
+    }
+
+    // ---------------------------------------------------------
+    // ETAPE 1 : Recuperer data.js existant
     // ---------------------------------------------------------
     let existingData = [];
 
     try {
-      // D'abord obtenir les metadata du fichier (pas le contenu)
-      const fileInfo = await githubFetch(`/repos/${repo}/contents/data.js`, token);
+      // Telecharger le fichier brut depuis GitHub (pas de limite de taille)
+      const rawUrl = `https://raw.githubusercontent.com/${repo}/main/data.js`;
+      console.log(`[upload-data] Telechargement ${rawUrl}`);
+      const rawResp = await fetch(rawUrl);
 
-      if (fileInfo.download_url) {
-        // Telecharger le fichier brut directement
-        const rawResp = await fetch(fileInfo.download_url);
-        if (rawResp.ok) {
-          const rawText = await rawResp.text();
-          const match = rawText.match(/var\s+HANDBALL_DATA\s*=\s*(\[[\s\S]*\])\s*;/);
-          if (match && match[1]) {
-            existingData = JSON.parse(match[1]);
-            console.log(`[upload-data] data.js existant: ${existingData.length} lignes`);
-          }
+      if (rawResp.ok) {
+        const rawText = await rawResp.text();
+        console.log(`[upload-data] data.js telecharge: ${(rawText.length / 1024).toFixed(0)} Ko`);
+        const match = rawText.match(/var\s+HANDBALL_DATA\s*=\s*(\[[\s\S]*\])\s*;/);
+        if (match && match[1]) {
+          existingData = JSON.parse(match[1]);
+          console.log(`[upload-data] data.js existant: ${existingData.length} lignes`);
         }
+      } else {
+        console.log(`[upload-data] Pas de data.js existant (${rawResp.status})`);
       }
     } catch (e) {
-      console.log('[upload-data] Pas de data.js existant ou erreur lecture:', e.message);
-      existingData = [];
+      console.log('[upload-data] Erreur lecture data.js:', e.message);
     }
 
     // ---------------------------------------------------------
@@ -122,7 +135,6 @@ exports.handler = async (event) => {
     const hashSet = new Set();
     const mergedData = [];
 
-    // D'abord les donnees existantes
     for (const row of existingData) {
       const h = rowHash(row);
       if (!hashSet.has(h)) {
@@ -131,7 +143,6 @@ exports.handler = async (event) => {
       }
     }
 
-    // Puis les nouvelles (seules les uniques)
     let newCount = 0;
     for (const row of data) {
       if (Object.values(row).every(v => !v || String(v).trim() === '')) continue;
@@ -146,7 +157,7 @@ exports.handler = async (event) => {
     console.log(`[upload-data] Fusion: ${mergedData.length} total, ${newCount} nouvelles`);
 
     // ---------------------------------------------------------
-    // ETAPE 3 : Generer le contenu data.js
+    // ETAPE 3 : Generer data.js
     // ---------------------------------------------------------
     const dataJsContent = [
       '// Auto-genere par Netlify Function - ne pas modifier manuellement',
@@ -158,11 +169,11 @@ exports.handler = async (event) => {
     console.log(`[upload-data] data.js genere: ${(dataJsContent.length / 1024).toFixed(0)} Ko`);
 
     // ---------------------------------------------------------
-    // ETAPE 4 : Commit via l'API Git bas niveau
-    //           (supporte fichiers > 1 Mo)
+    // ETAPE 4 : Commit via Git Blobs API
     // ---------------------------------------------------------
 
-    // 4a. Creer un Blob avec le contenu
+    // 4a. Creer un Blob
+    console.log('[upload-data] 4a. Creation blob...');
     const blob = await githubFetch(`/repos/${repo}/git/blobs`, token, {
       method: 'POST',
       body: JSON.stringify({
@@ -170,18 +181,21 @@ exports.handler = async (event) => {
         encoding: 'base64'
       })
     });
-    console.log(`[upload-data] Blob cree: ${blob.sha}`);
+    console.log(`[upload-data] Blob: ${blob.sha}`);
 
-    // 4b. Obtenir la reference HEAD (dernier commit)
+    // 4b. Obtenir la ref HEAD
+    console.log('[upload-data] 4b. Lecture ref main...');
     const ref = await githubFetch(`/repos/${repo}/git/ref/heads/main`, token);
     const lastCommitSha = ref.object.sha;
-    console.log(`[upload-data] Dernier commit: ${lastCommitSha}`);
+    console.log(`[upload-data] HEAD: ${lastCommitSha}`);
 
-    // 4c. Obtenir l'arbre du dernier commit
+    // 4c. Obtenir l'arbre du commit
+    console.log('[upload-data] 4c. Lecture commit...');
     const lastCommit = await githubFetch(`/repos/${repo}/git/commits/${lastCommitSha}`, token);
     const baseTreeSha = lastCommit.tree.sha;
 
-    // 4d. Creer un nouvel arbre avec le fichier modifie
+    // 4d. Creer un nouvel arbre
+    console.log('[upload-data] 4d. Creation arbre...');
     const newTree = await githubFetch(`/repos/${repo}/git/trees`, token, {
       method: 'POST',
       body: JSON.stringify({
@@ -194,9 +208,10 @@ exports.handler = async (event) => {
         }]
       })
     });
-    console.log(`[upload-data] Arbre cree: ${newTree.sha}`);
+    console.log(`[upload-data] Arbre: ${newTree.sha}`);
 
     // 4e. Creer le commit
+    console.log('[upload-data] 4e. Creation commit...');
     const now = new Date();
     const dateStr = now.toLocaleDateString('fr-FR') + ' ' +
       now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -209,20 +224,16 @@ exports.handler = async (event) => {
         parents: [lastCommitSha]
       })
     });
-    console.log(`[upload-data] Commit cree: ${newCommit.sha}`);
+    console.log(`[upload-data] Commit: ${newCommit.sha}`);
 
-    // 4f. Mettre a jour la reference HEAD
+    // 4f. Mettre a jour la ref
+    console.log('[upload-data] 4f. Mise a jour ref...');
     await githubFetch(`/repos/${repo}/git/refs/heads/main`, token, {
       method: 'PATCH',
-      body: JSON.stringify({
-        sha: newCommit.sha
-      })
+      body: JSON.stringify({ sha: newCommit.sha })
     });
-    console.log(`[upload-data] Ref main mise a jour`);
+    console.log('[upload-data] SUCCES !');
 
-    // ---------------------------------------------------------
-    // SUCCES
-    // ---------------------------------------------------------
     return {
       statusCode: 200,
       headers,
@@ -236,7 +247,7 @@ exports.handler = async (event) => {
     };
 
   } catch (error) {
-    console.error('[upload-data] ERREUR:', error.message);
+    console.error('[upload-data] ERREUR FINALE:', error.message);
     return {
       statusCode: 500,
       headers,
